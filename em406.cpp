@@ -1,8 +1,62 @@
 #include "em406.h"
-#include "../stringlib/dmstring.cpp"
+#include <dmstring.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <uart.h>
+#include <string.h>
+#include <esp_log.h>
+
+EM406::EM406(int rx, int tx)
+{
+
+    uart_config_t cfg;
+
+    cfg.baud_rate = 4800;
+    cfg.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    cfg.parity = UART_PARITY_DISABLE;
+    cfg.stop_bits = UART_STOP_BITS_1;
+    cfg.data_bits = UART_DATA_7_BITS;
+
+    uart_param_config(UART_NUM_1, &cfg);
+    uart_set_pin(UART_NUM_1, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    uart_driver_install(UART_NUM_1, 1024, 1024, 0, NULL, 0);
+
+    strcpy(_buffer, "tac");
+}
+
+bool EM406::update()
+{
+    size_t availableLength;
+    uart_get_buffered_data_len(UART_NUM_1, &availableLength);
+
+    if (!availableLength)
+        return false;
+
+    uint8_t c = 0;
+    uart_read_bytes(UART_NUM_1, &c, 1, 100 / portTICK_PERIOD_MS);
+    //printf("%c", c);
+    if (c == 13)
+        return true;
+
+    if (c == 10)
+    {
+        _processBuffer(_buffer);
+        
+        strcpy(_buffer, "");
+        return true;
+    }
+
+    char ch[2];
+    sprintf(ch, "%c", c);
+
+    strcat(_buffer, ch);
+
+    return true;
+}
 
 void EM406::dispatchGGA(char *gga)
 {
+    strcpy(_lastGGA, gga);
     section(gga, ",", 4, longitude);
     section(gga, ",", 5, longitudeEW);
     section(gga, ",", 2, latitude);
@@ -48,6 +102,7 @@ void EM406::dispatchGSA(char *buffer)
 }
 void EM406::dispatchRMC(char *rmc)
 {
+    strcpy(_lastRMC, rmc);
     section(rmc, ",", 7, speedOverGroundKnotsStr);
     speedOverGroundKnots = atof(speedOverGroundKnotsStr);
     speedOverGroundKmh = speedOverGroundKnots * 1.852;
@@ -60,7 +115,116 @@ void EM406::dispatchGSV(char *buffer)
 {
 }
 
-#define CATCH_CONFIG_MAIN
+/**
+ * Dispatches the last message into the right buffer variable
+ */
+bool EM406::_processBuffer(char *buffer)
+{
+    //Invalid message from EM406 ?
+    if (!_isMessageValid(buffer))
+    {
+        //debug("Invalid buffer");
+        return false;
+    }
+
+    if (startsWith(_buffer, "$GPGGA"))
+    {
+        dispatchGGA(_buffer);
+        //strcpy(_lastGGA, _buffer);
+
+        //ESP_LOGI("processBuffer", "GGA : %s", _lastGGA);
+        char fixed[3];
+        section(_lastGGA, ",", 6, fixed);
+        _isFixed = equals(fixed, "1");
+        //ESP_LOGI("processBuffer", "Fixed : %s", fixed);
+        return true;
+    }
+
+    if (startsWith(_buffer, "$GPGSA"))
+    {
+        strcpy(_lastGSA, _buffer);
+        return true;
+    }
+
+    if (startsWith(_buffer, "$GPRMC"))
+    {
+        dispatchRMC(_buffer);
+        // strcpy(_lastRMC, _buffer);
+        return true;
+    }
+
+    if (startsWith(_buffer, "$GPGSV"))
+    {
+        strcpy(_lastGSV, _buffer);
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Check the raw message's checksum
+ * Returns true if the message s valid.
+ */
+bool EM406::_isMessageValid(char *str)
+{
+    if (!str)
+        return false;
+    if (equals(str, ""))
+        return false;
+
+    char withoutDollar[128];
+    substring(str, 1, strlen(str), withoutDollar); //remove the first $
+    int star = indexOf(withoutDollar, "*");        //index of *
+    if (star == -1)
+        return false;
+
+    char givenChecksum[4];
+    substring(withoutDollar, star + 1, strlen(withoutDollar), givenChecksum);
+
+    //ESP_LOGI("isMessageValid", "----------");
+    //ESP_LOGI("isMessageValid", "str = %s", str);
+    //ESP_LOGI("isMessageValid", "s = %s", s);
+    //ESP_LOGI("isMessageValid", "star = %d", star);
+
+    //ESP_LOGI("isMessageValid", "givenChecksum = %s", givenChecksum);
+    char messageBetween[120];
+    substring(withoutDollar, 0, star, messageBetween);
+    //ESP_LOGI("isMessageValid", "messageBetween = %s", messageBetween);
+
+    char *myChecksum = _computeChecksum(messageBetween);
+    //ESP_LOGI("isMessageValid", "myChecksum = %s", myChecksum);
+    bool res = equals(myChecksum, givenChecksum);
+
+    return res;
+}
+
+/**
+ * Compute a message checksum
+ */
+char *EM406::_computeChecksum(char *s)
+{
+    //while (true)
+    //{
+    //ESP_LOGI("_computeChecksum", "s = %s", s);
+    int out = 0;
+
+    for (int i = 0; i < strlen(s); i++)
+    {
+        out = out ^ s[i];
+    }
+
+    //ESP_LOGI("_computeChecksum", "out = %X", out);
+
+    char *hex = (char *)malloc(10);
+    sprintf(hex, "%X", out);
+    //ESP_LOGI("_computeChecksum", "hex = %s", hex);
+    //continue;
+    //}
+    return hex;
+}
+
+//#define CATCH_CONFIG_MAIN
 
 #ifdef CATCH_CONFIG_MAIN
 

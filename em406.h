@@ -3,55 +3,49 @@
 
 class EM406
 {
-  private:
-  public:
-    char _lastGGA[128];
-    char _lastGSA[128];
-    char _lastRMC[128];
-    char _lastGSV[128];
+private:
+  bool _isFixed = false;
 
-    void dispatchGGA(char *buffer);
-    void dispatchGSA(char *buffer);
-    void dispatchRMC(char *buffer);
-    void dispatchGSV(char *buffer);
+  bool _isValid = false;
+  bool _processBuffer(char *buffer);
 
-    
-    char longitude[15];
-    char longitudeEW[2];
-    char latitude[15];
-    char latitudeNS[2];
-    int satellitesUsed;
-    int mslAltitude;
-    char utcTime[15];
+  char *_computeChecksum(char *s);
+  bool _isMessageValid(char *s);
 
-    char utcTimeFormatted[10];
+public:
+  EM406(int rx, int tx);
+  bool update();
 
-    char speedOverGroundKnotsStr[15];
-    float speedOverGroundKnots;
-    float speedOverGroundKmh;
-    float courseOverGroundDeg;
+  char _buffer[128];
 
-    char googleMapsUrl[128];
+  char _lastGGA[128];
+  char _lastGSA[128];
+  char _lastRMC[128];
+  char _lastGSV[128];
 
-    /*
-    String getGoogleMapsUrl();
+  void dispatchGGA(char *buffer);
+  void dispatchGSA(char *buffer);
+  void dispatchRMC(char *buffer);
+  void dispatchGSV(char *buffer);
 
-*/
-    /*
-    String getUTCTimeFormatted(){ 
-        String raw = getUTCTime();
-        String out = raw.substring(0,2) + ":" + raw.substring(2,4) + ":" + raw.substring(4,6);
-        return out;
-    }
+  char longitude[12];
+  char longitudeEW[2];
+  char latitude[12];
+  char latitudeNS[2];
+  int satellitesUsed;
+  int mslAltitude;
+  char utcTime[15];
 
-    String getLatitudeFormatted();
-    String getLongitudeFormatted();
+  char utcTimeFormatted[10];
 
-    String getSpeedOverGroundKnotsStr(){ return section(_lastRMC, ",", 7);}
-    float getSpeedOverGroundKnots(){ return section(_lastRMC, ",", 7).toFloat();}
-    float getSpeedOverGroundKmh(){ return getSpeedOverGroundKnots() * 1.852; }
-float getCourseOverGroundDeg(){ return section(_lastRMC, ",", 8).toFloat();}
-*/
+  char speedOverGroundKnotsStr[15];
+  float speedOverGroundKnots;
+  float speedOverGroundKmh;
+  float courseOverGroundDeg;
+
+  char googleMapsUrl[128];
+
+  bool isFixed() { return _isFixed; }
 };
 
 #endif //_EM406_h

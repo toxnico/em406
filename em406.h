@@ -1,6 +1,8 @@
 #ifndef _EM406_h
 #define _EM406_h
 
+#include <dmstring.h>
+
 class EM406
 {
 private:

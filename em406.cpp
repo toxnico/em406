@@ -1,8 +1,8 @@
 #include "em406.h"
-#include <dmstring.h>
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <uart.h>
+#include <driver/uart.h>
 #include <string.h>
 #include <esp_log.h>
 

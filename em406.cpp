@@ -5,6 +5,7 @@
 #include <driver/uart.h>
 #include <string.h>
 #include <esp_log.h>
+#include "Arduino.h"
 
 EM406::EM406(int rx, int tx)
 {
@@ -17,11 +18,16 @@ EM406::EM406(int rx, int tx)
     cfg.stop_bits = UART_STOP_BITS_1;
     cfg.data_bits = UART_DATA_7_BITS;
 
-    uart_param_config(UART_NUM_1, &cfg);
-    uart_set_pin(UART_NUM_1, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_driver_install(UART_NUM_1, 1024, 1024, 0, NULL, 0);
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &cfg));
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 1024, 1024, 0, NULL, 0));
 
     strcpy(_buffer, "tac");
+    strcpy(latitude, "undef");
+    strcpy(longitude, "undef");
+    strcpy(latitudeNS, "X");
+    strcpy(longitudeEW, "X");
+    strcpy(utcTime, "XX:XX:XX");
 }
 
 bool EM406::update()
@@ -35,6 +41,9 @@ bool EM406::update()
     uint8_t c = 0;
     uart_read_bytes(UART_NUM_1, &c, 1, 100 / portTICK_PERIOD_MS);
     //printf("%c", c);
+
+//return true;
+    //Serial.write(c);
     if (c == 13)
         return true;
 
@@ -42,7 +51,10 @@ bool EM406::update()
     {
         _processBuffer(_buffer);
         
+        strcpy(_lastBuffer, _buffer);
         strcpy(_buffer, "");
+
+        
         return true;
     }
 
@@ -56,7 +68,7 @@ bool EM406::update()
 
 void EM406::dispatchGGA(char *gga)
 {
-    strcpy(_lastGGA, gga);
+    
     section(gga, ",", 4, longitude);
     section(gga, ",", 5, longitudeEW);
     section(gga, ",", 2, latitude);
@@ -129,6 +141,7 @@ bool EM406::_processBuffer(char *buffer)
 
     if (startsWith(_buffer, "$GPGGA"))
     {
+        strcpy(_lastGGA, _buffer);
         dispatchGGA(_buffer);
         //strcpy(_lastGGA, _buffer);
 
@@ -195,7 +208,7 @@ bool EM406::_isMessageValid(char *str)
     char *myChecksum = _computeChecksum(messageBetween);
     //ESP_LOGI("isMessageValid", "myChecksum = %s", myChecksum);
     bool res = equals(myChecksum, givenChecksum);
-
+    free(myChecksum);
     return res;
 }
 

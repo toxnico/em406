@@ -19,6 +19,7 @@ public:
   bool update();
 
   char _buffer[128];
+  char _lastBuffer[128];
 
   char _lastGGA[128];
   char _lastGSA[128];
@@ -37,6 +38,7 @@ public:
   int satellitesUsed;
   int mslAltitude;
   char utcTime[15];
+  bool hasChanged = false;
 
   char utcTimeFormatted[10];
 

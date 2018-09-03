@@ -18,9 +18,9 @@ EM406::EM406(int rx, int tx)
     cfg.stop_bits = UART_STOP_BITS_1;
     cfg.data_bits = UART_DATA_7_BITS;
 
-    ESP_ERROR_CHECK(uart_param_config(UART_NUM_1, &cfg));
-    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_1, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_1, 1024, 1024, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM_2, &cfg));
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_2, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM_2, 1024, 1024, 0, NULL, 0));
 
     strcpy(_buffer, "tac");
     strcpy(latitude, "undef");
@@ -33,13 +33,13 @@ EM406::EM406(int rx, int tx)
 bool EM406::update()
 {
     size_t availableLength;
-    uart_get_buffered_data_len(UART_NUM_1, &availableLength);
+    uart_get_buffered_data_len(UART_NUM_2, &availableLength);
 
     if (!availableLength)
         return false;
 
     uint8_t c = 0;
-    uart_read_bytes(UART_NUM_1, &c, 1, 100 / portTICK_PERIOD_MS);
+    uart_read_bytes(UART_NUM_2, &c, 1, 100 / portTICK_PERIOD_MS);
     //printf("%c", c);
 
 //return true;
